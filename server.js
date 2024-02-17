@@ -42,6 +42,10 @@ MongoClient.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: tr
             });
     });
 
+      app.get("/", (req, res)=>{
+        res.send('Welcome to my server.');       
+    });
+
     // Registration Route
     app.post('/register', (req, res) => {
         const { username, password } = req.body;
