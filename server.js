@@ -1,81 +1,3 @@
-// const express = require('express');
-// const bodyParser = require('body-parser');
-// const app = express();
-// const PORT = 3000;
-
-// // const fs = require('fs');
-// // const DB_FILE = 'C:/Users/sajal/Downloads/LoginApp/LoginApp/users.json';
-// // if (!fs.existsSync(DB_FILE)) {
-// //     fs.writeFileSync(DB_FILE, '[]');
-// // }
-// // let users = JSON.parse(fs.readFileSync(DB_FILE));
-
-
-// const { MongoClient } = require('mongodb');
-// const MONGODB_URI = 'mongodb://localhost:27017';
-// const DB_NAME = 'GCS_User';
-// const COLLECTION_NAME = 'users';
-
-
-
-// app.use(bodyParser.json());
-
-// MongoClient.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-// .then(client => {
-//     const db = client.db(DB_NAME);
-//     const usersCollection = db.collection(COLLECTION_NAME);
-
-
-//     app.get("/", (req, res)=>{
-//         res.send('Welcome to my server.');       
-//     });
-
-//     // Authentication Route
-//     app.post('/authenticate', (req, res) => {
-//         const { username, password } = req.body;
-//         usersCollection.findOne({ username, password })
-//             .then(user => {
-//                 if (user) {
-//                     res.json({ success: true });
-//                 } else {
-//                     res.status(401).json({ success: false, message: "Authentication failed" });
-//                 }
-//             })
-//             .catch(error => {
-//                 console.error("Error authenticating user:", error);
-//                 res.status(500).json({ success: false, message: "Server error" });
-//             });
-//     });
-
-//     // Registration Route
-//     app.post('/register', (req, res) => {
-//         const { username, password } = req.body;
-//         usersCollection.findOne({ username })
-//             .then(existingUser => {
-//                 if (existingUser) {
-//                     res.status(400).json({ success: false, message: "Username already exists" });
-//                 } else {
-//                     return usersCollection.insertOne({ username, password });
-//                 }
-//             })
-//             .then(result => {
-//                 res.json({ success: true, message: "Registration successful" });
-//             })
-//             .catch(error => {
-//                 console.error("Error registering user:", error);
-//                 res.status(500).json({ success: false, message: "Server error" });
-//             });
-//     });
-
-//     // Start the server
-//     app.listen(PORT, () => {
-//         console.log(`Server is running on http://localhost:${PORT}`);
-//     });
-// })
-// .catch(error => {
-//     console.error("Error connecting to MongoDB:", error);
-// });
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
@@ -106,10 +28,11 @@ app.get("/", (req, res) => {
 
 // Authentication Route
 app.post('/authenticate', (req, res) => {
-  const { username, password } = req.body;
-  const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
+  const { email, password } = req.body;
+  const query = `SELECT * FROM users WHERE email = ? AND password = ?`;
+  const values = [email, password];
 
-  connection.query(query, (error, results) => {
+  connection.query(query, values, (error, results) => {
     if (error) {
       console.error("Error authenticating user:", error);
       res.status(500).json({ success: false, message: "Server error" });
@@ -123,22 +46,57 @@ app.post('/authenticate', (req, res) => {
   });
 });
 
-// Registration Route
-app.post('/register', (req, res) => {
-  const { username, password } = req.body;
-  const query = `INSERT INTO users (username, password) VALUES ('${username}', '${password}')`;
+// Assuming you have already defined 'app' and 'connection' somewhere in your code.
+
+app.get('/users', (req, res) => {
+  const query = `SELECT * FROM users`;
 
   connection.query(query, (error, results) => {
+      if (error) {
+          console.error("Error:", error);
+          res.status(500).json({ error: 'Internal server error' });
+      } else {
+          console.log("Query:", query);
+          res.status(200).json(results); // Assuming you want to send the results back to the client
+      }
+  });
+});
+
+
+// Registration Route
+app.post('/register', (req, res) => {
+  const { email, password, firstname, lastname, phonenumber, companyname, address, city, state } = req.body;
+
+  // Check if email already exists
+  const checkQuery = `SELECT * FROM users WHERE email = ?`;
+  connection.query(checkQuery, [email], (error, results) => {
     if (error) {
-      console.error("Error registering user:", error);
-      res.status(500).json({ success: false, message: "Server error" });
+      console.error("Error checking existing user:", error);
+      return res.status(500).json({ success: false, message: "Server error" });
     } else {
-      res.json({ success: true, message: "Registration successful" });
+      if (results.length > 0) {
+        return res.status(400).json({ success: false, message: "Email already registered" });
+      } else {
+        // Insert new user
+        const insertQuery = `INSERT INTO users (email, password, firstname, lastname, phonenumber, companyname, address, city, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        const insertValues = [email, password, firstname, lastname, phonenumber, companyname, address, city, state];
+        connection.query(insertQuery, insertValues, (error, results) => {
+          if (error) {
+            console.error("Error registering user:", error);
+            return res.status(500).json({ success: false, message: "Server error" });
+          } else {
+            return res.json({ success: true, message: "Registration successful" });
+          }
+        });
+      }
     }
   });
 });
+
 
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+
